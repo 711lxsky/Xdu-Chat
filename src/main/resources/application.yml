@@ -1,0 +1,20 @@
+server:
+  port: 8448
+
+spring:
+  banner:
+    charset: UTF-8
+    location: classpath:xdu-chat-banner.txt
+
+knife4j:
+  enable: true
+  openapi:
+    title: xdu-chat代理与数据中台
+    email: 22009200439@stu.xidian.edu.cn
+    description: 用于对XDU-Chat进行数据转发和漫游的系统
+    group:
+      dev1:
+        group-name: 开发一阶
+        api-rule: package
+    version: 0.1.0
+    concat: 711lxsky
