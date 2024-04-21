@@ -3,6 +3,7 @@ package com.backstage.xduchat.controller;
 import com.backstage.xduchat.domain.Result;
 import com.backstage.xduchat.service.HealthCheckService;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +23,7 @@ public class HealthCheckController {
     private HealthCheckService healthCheckService;
 
 
+    @ApiOperation(value = "服务健康检测接口")
     @RequestMapping(path = "/health-check", method = RequestMethod.OPTIONS)
     public Result<?> healthCheck() {
         try {
