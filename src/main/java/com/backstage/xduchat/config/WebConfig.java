@@ -23,7 +23,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Bean
     public WebClient webClient(WebClient.Builder builder){
         return builder
-                .baseUrl(proxyConfig.getXduchatApiUrl())
+                .baseUrl(proxyConfig.getXduchatApiUrlNew())
                 .build();
     }
 
