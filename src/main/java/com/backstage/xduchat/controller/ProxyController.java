@@ -1,5 +1,6 @@
 package com.backstage.xduchat.controller;
 
+import com.backstage.xduchat.Exception.HttpException;
 import com.backstage.xduchat.service.ProxyService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -30,7 +31,13 @@ public class ProxyController {
     @ApiOperation(value = "数据格式中转，并持久化记录用以后续分析")
     @PostMapping(path = "/v1/chat/completions", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> proxy(@RequestBody String jsonParam){
-        return proxyService.proxyAndSaveRecord(jsonParam);
+        try {
+            return proxyService.proxyAndSaveRecord(jsonParam);
+        }
+        catch (HttpException e){
+            e.printStackTrace();
+            return Flux.just(e.getMessage());
+        }
     }
 
 }

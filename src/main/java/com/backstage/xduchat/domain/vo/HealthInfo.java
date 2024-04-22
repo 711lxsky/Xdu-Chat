@@ -1,5 +1,6 @@
 package com.backstage.xduchat.domain.vo;
 
+import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.*;
 
@@ -16,15 +17,16 @@ import java.io.Serializable;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@ApiModel("服务健康信息")
 public class HealthInfo implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty("服务名称")
+    @ApiModelProperty(value = "服务名称")
     private String serviceName;
 
-    @ApiModelProperty("服务运行时间, 单位ms")
+    @ApiModelProperty(value = "服务运行时间, 单位ms")
     private long serviceTime;
 
 }
