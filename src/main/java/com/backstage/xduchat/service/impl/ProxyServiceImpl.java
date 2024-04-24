@@ -80,7 +80,10 @@ public class ProxyServiceImpl implements ProxyService {
                     .flatMapMany(
                             jsonString -> {
                                 // 拿到返回值之后处理
-                                GeneralRecord generalRecord = new GeneralRecord(userId, new Date(System.currentTimeMillis()), jsonString);
+                                MessageOPENAI responseMessage = new MessageOPENAI(proxyConfig.getParameterRoleAssistant(), jsonString);
+                                messagesOpenai.add(responseMessage);
+                                String jsonGeneralRecords = jsonUtil.toJson(messagesOpenai);
+                                GeneralRecord generalRecord = new GeneralRecord(userId, new Date(System.currentTimeMillis()), jsonGeneralRecords);
                                 // 持久化
                                 generalRecordService.save(generalRecord);
                                 // 每个字符分割
@@ -98,7 +101,9 @@ public class ProxyServiceImpl implements ProxyService {
                                         return proxyConfig.getSSEData()
                                                 + proxyConfig.getConnectStrBas1()
                                                 + proxyConfig.getConnectStrFirst()
+                                                + " \""
                                                 + string
+                                                + "\""
                                                 + proxyConfig.getConnectStrBas2();
 //                                                    + proxyConfig.getSSENewLineDouble();
                                     }
@@ -114,7 +119,9 @@ public class ProxyServiceImpl implements ProxyService {
                                     else {
                                         return proxyConfig.getSSEData()
                                                 + proxyConfig.getConnectStrBas1()
+                                                + " \""
                                                 + string
+                                                + "\""
                                                 + proxyConfig.getConnectStrBas2();
 //                                                    + proxyConfig.getSSENewLineDouble();
                                     }
