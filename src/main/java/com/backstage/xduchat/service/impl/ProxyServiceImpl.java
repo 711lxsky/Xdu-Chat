@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -70,6 +71,17 @@ public class ProxyServiceImpl implements ProxyService {
             throw new HttpException(ExceptionConstant.UserIdIsNull.getMessage_EN());
         }
         String userId = jsonUserId.asText();
+        if(! StringUtils.hasText(userId)){
+            String info =
+                    proxyConfig.getConnectStrBas1()
+                            + proxyConfig.getConnectStrFirst()
+                            + "\""
+                            + ExceptionConstant.UserIdIsNull.getMMessage_ZH() + ", 请进行统一身份认证登录 ！ "
+                            + "\""
+                            + proxyConfig.getConnectStrBas2();
+            Flux<String> infos = Flux.fromArray(new String[]{info, proxyConfig.getSSEDone()});
+            return infos;
+        }
         if(jsonMessages.isArray()){
             List<MessageOPENAI> messagesOpenai = jsonUtil.getObjectMapper().convertValue(jsonMessages, new TypeReference<>() {});
             List<MessageXDUCHAT> messagesXduchat = this.convertMessage(messagesOpenai);
@@ -88,6 +100,7 @@ public class ProxyServiceImpl implements ProxyService {
                                 generalRecordService.save(generalRecord);
                                 // 每个字符分割
                                 String [] strings = jsonString.split("");
+                                log.info("strings: {}",Arrays.toString(strings));
                                 List<String> responseInfos = new ArrayList<>();
                                 Collections.addAll(responseInfos, strings);
                                 responseInfos.add(proxyConfig.getSSEDone());
@@ -98,32 +111,42 @@ public class ProxyServiceImpl implements ProxyService {
                                 Flux<Long> intervalFlux = Flux.interval(Duration.ofMillis(100));
                                 return Flux.zip(stringFlux, intervalFlux, (string, index) -> {
                                     if(index == 0){
-                                        return proxyConfig.getSSEData()
-                                                + proxyConfig.getConnectStrBas1()
+                                        String info =
+//                                                proxyConfig.getSSEData() +
+                                                proxyConfig.getConnectStrBas1()
                                                 + proxyConfig.getConnectStrFirst()
-                                                + " \""
+                                                + "\""
                                                 + string
                                                 + "\""
                                                 + proxyConfig.getConnectStrBas2();
 //                                                    + proxyConfig.getSSENewLineDouble();
+//                                        log.info("index: {} info: {}", index,  info);
+                                        return info;
                                     }
                                     else if (index == lenInfo - 2){
-                                        return proxyConfig.getSSEData()
-                                                + proxyConfig.getConnectStrBas1()
+                                        String info =
+//                                                proxyConfig.getSSEData() +
+                                                proxyConfig.getConnectStrBas1()
                                                 + proxyConfig.getConnectStrLast();
 //                                                    + proxyConfig.getSSENewLineDouble();
+//                                        log.info("index: {} info: {}", index,  info);
+                                        return info;
                                     }
                                     else if(index == lenInfo - 1){
                                         return proxyConfig.getSSEDone();
                                     }
                                     else {
-                                        return proxyConfig.getSSEData()
-                                                + proxyConfig.getConnectStrBas1()
-                                                + " \""
+                                        String info =
+//                                                proxyConfig.getSSEData() +
+                                                proxyConfig.getConnectStrBas1()
+                                                + proxyConfig.getConnectStrIndexMid()
+                                                + "\""
                                                 + string
                                                 + "\""
                                                 + proxyConfig.getConnectStrBas2();
 //                                                    + proxyConfig.getSSENewLineDouble();
+//                                        log.info("index: {} info: {}", index,  info);
+                                        return info;
                                     }
                                 });
                             }
