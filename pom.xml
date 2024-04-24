@@ -106,7 +106,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>com.backstage.xduedu.XduEduApplication</mainClass>
+                    <mainClass>com.backstage.xduchat.XduChatApplication</mainClass>
                 </configuration>
                 <executions>
                     <execution>

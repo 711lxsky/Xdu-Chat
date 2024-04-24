@@ -28,6 +28,9 @@ public class FeedbackDTO implements Serializable {
     @ApiModelProperty(name = "type", value = "反馈类型", required = true)
     private String type;
 
+    @ApiModelProperty(name = "record", value = "反馈所对应的记录", required = true)
+    private String record;
+
     @ApiModelProperty(name = "content", value = "反馈内容", allowEmptyValue = true)
     private String content;
 

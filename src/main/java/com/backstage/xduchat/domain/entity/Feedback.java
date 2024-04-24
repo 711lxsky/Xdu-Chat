@@ -39,6 +39,12 @@ public class Feedback implements Serializable {
     private Date time;
 
     /**
+     * 反馈所对应的记录信息
+     */
+    @TableField(value = "record")
+    private String record;
+
+    /**
      * 反馈内容，如果是赞/踩则空，反馈则有内容
      */
     @TableField(value = "content")

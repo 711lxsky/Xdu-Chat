@@ -30,7 +30,8 @@ public class FeedbackServiceImpl extends ServiceImpl<FeedbackMapper, Feedback>
         // 数据判空
         if(Objects.isNull(feedbackDTO)
                 || !StringUtils.hasText(feedbackDTO.getUid())
-                || !StringUtils.hasText(feedbackDTO.getType())){
+                || !StringUtils.hasText(feedbackDTO.getType())
+                || !StringUtils.hasText(feedbackDTO.getRecord())){
             throw new HttpException(ExceptionConstant.DataNull.getMessage_EN());
         }
         // 转换并校验
@@ -45,6 +46,7 @@ public class FeedbackServiceImpl extends ServiceImpl<FeedbackMapper, Feedback>
     private Feedback parseFeedbackDTOToFeedback(FeedbackDTO feedbackDTO) throws HttpException{
         Feedback feedback = new Feedback();
         feedback.setUserId(feedbackDTO.getUid());
+        feedback.setRecord(feedbackDTO.getRecord());
         FeedbackConstant feedbackConstant = FeedbackConstant.fromCodeToName(feedbackDTO.getType());
         feedback.setType(feedbackConstant.getTypeCode());
         if(StringUtils.pathEquals(feedbackConstant.getTypeName(), FeedbackConstant.Feedback.getTypeName())){

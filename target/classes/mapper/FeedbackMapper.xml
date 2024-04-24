@@ -9,12 +9,13 @@
             <result property="userId" column="user_id" jdbcType="CHAR"/>
             <result property="type" column="type" jdbcType="TINYINT"/>
             <result property="time" column="time" jdbcType="TIMESTAMP"/>
+            <result property="record" column="record" jdbcType="VARCHAR"/>
             <result property="content" column="content" jdbcType="VARCHAR"/>
             <result property="deleted" column="deleted" jdbcType="TINYINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,type,
-        time,content,deleted
+        id,user_id,type,time,
+        record,content,deleted
     </sql>
 </mapper>
