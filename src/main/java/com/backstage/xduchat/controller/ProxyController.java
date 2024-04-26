@@ -1,6 +1,7 @@
 package com.backstage.xduchat.controller;
 
 import com.backstage.xduchat.Exception.HttpException;
+import com.backstage.xduchat.config.ProxyConfig;
 import com.backstage.xduchat.service.ProxyService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -22,10 +23,13 @@ public class ProxyController {
 
     private final ProxyService proxyService;
 
+    private final ProxyConfig proxyConfig;
+
     @Autowired
-    public ProxyController(ProxyService proxyService)
+    public ProxyController(ProxyService proxyService, ProxyConfig proxyConfig)
     {
         this.proxyService = proxyService;
+        this.proxyConfig = proxyConfig;
     }
 
     @ApiOperation(value = "数据格式中转，并持久化记录用以后续分析")
@@ -36,7 +40,14 @@ public class ProxyController {
         }
         catch (HttpException e){
             e.printStackTrace();
-            return Flux.just(e.getMessage());
+            String baseInfo = e.getMessage();
+            String fullResponseInfo =
+                    proxyConfig.getConnectStrBas1()
+                    + proxyConfig.getConnectStrFirst()
+                    + "\""
+                    + baseInfo
+                    + proxyConfig.getConnectStrBas2();
+            return Flux.fromArray(new String[]{fullResponseInfo, proxyConfig.getSSEDone()});
         }
     }
 

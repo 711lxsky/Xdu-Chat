@@ -26,6 +26,9 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 /**
  * @Author: 711lxsky
@@ -46,6 +49,8 @@ public class ProxyServiceImpl implements ProxyService {
 
     private final GeneralRecordService generalRecordService;
 
+    private final ConcurrentHashMap<String, Flux<String>> proxyRecords;
+
     @Autowired
     public ProxyServiceImpl(ProxyConfig proxyConfig, WebClient webClient, DataConfig dataConfig, JsonUtil jsonUtil, GeneralRecordService generalRecordService){
         this.proxyConfig = proxyConfig;
@@ -53,35 +58,72 @@ public class ProxyServiceImpl implements ProxyService {
         this.dataConfig = dataConfig;
         this.jsonUtil = jsonUtil;
         this.generalRecordService = generalRecordService;
+        this.proxyRecords = new ConcurrentHashMap<>();
+    }
+
+    private boolean judgeJsonDataIsNull(JsonNode jsonNode){
+        if(Objects.isNull(jsonNode)){
+            return true;
+        }
+        String jsonNodeText = jsonUtil.parseJsonNodeToString(jsonNode);
+        return !StringUtils.hasText(jsonNodeText);
     }
 
     @Override
     public Flux<String> proxyAndSaveRecord(String jsonParametersStr) throws HttpException{
         // 逐级校验数据
+        // 最外层参数
         JsonNode jsonParameters = jsonUtil.getJsonNode(jsonParametersStr);
-        if(Objects.isNull(jsonParameters)){
-            throw new HttpException(ExceptionConstant.ParameterNull.getMessage_EN());
+        if(this.judgeJsonDataIsNull(jsonParameters)){
+            throw new HttpException(ExceptionConstant.ParameterNull.getMessage_ZH());
         }
+        // messages
         JsonNode jsonMessages = jsonParameters.get(proxyConfig.getParameterMessages());
-        if(Objects.isNull(jsonMessages)){
-            throw new HttpException(ExceptionConstant.MassagesNull.getMessage_EN());
+        if(this.judgeJsonDataIsNull(jsonMessages)){
+            throw new HttpException(ExceptionConstant.MassagesNull.getMessage_ZH());
         }
+        // uid
         JsonNode jsonUserId = jsonParameters.get(dataConfig.getParameterUserid());
-        if(Objects.isNull(jsonUserId)){
-            throw new HttpException(ExceptionConstant.UserIdIsNull.getMessage_EN());
+        if(this.judgeJsonDataIsNull(jsonUserId)){
+            throw new HttpException(ExceptionConstant.UserIdIsNull.getMessage_ZH() + ", 请进行统一身份认证登录 ！ ");
         }
         String userId = jsonUserId.asText();
-        if(! StringUtils.hasText(userId)){
-            String info =
-                    proxyConfig.getConnectStrBas1()
-                            + proxyConfig.getConnectStrFirst()
-                            + "\""
-                            + ExceptionConstant.UserIdIsNull.getMMessage_ZH() + ", 请进行统一身份认证登录 ！ "
-                            + "\""
-                            + proxyConfig.getConnectStrBas2();
-            Flux<String> infos = Flux.fromArray(new String[]{info, proxyConfig.getSSEDone()});
-            return infos;
+        // record_id
+        JsonNode jsonRecordId = jsonParameters.get(dataConfig.getParameterRecordId());
+        if(this.judgeJsonDataIsNull(jsonRecordId)){
+            throw new HttpException(ExceptionConstant.RecordIdIsNull.getMessage_ZH() + ", 请检查参数 ！ ");
         }
+        String recordId = jsonRecordId.asText();
+        // 将 userId 和 recordId 拼接组成 唯一标识符
+        String identifier = userId + recordId;
+        return proxyRecords.computeIfAbsent(identifier, key -> {
+            Flux<String> proxyResult = this.internalProxy(userId, recordId, jsonMessages)
+                    .cache()
+                    .doFinally(signalType -> proxyRecords.remove(identifier));
+            return proxyResult;
+        });
+        /*
+        CompletableFuture<Flux<String>> proxyResult = this.proxyRecords.computeIfAbsent(identifier, key -> new CompletableFuture<>());
+        try {
+            if (!proxyResult.isDone()) {
+                if (proxyRecords.get(identifier) == proxyResult) {
+                    try {
+                        Flux<String> proxyRes = this.internalProxy(userId, recordId, jsonMessages);
+                        proxyResult.complete(proxyRes);
+                    } finally {
+                        this.proxyRecords.remove(identifier);
+                    }
+                }
+            }
+            return proxyResult.get();
+        }
+        catch (InterruptedException | ExecutionException e) {
+            throw new HttpException(e.getMessage());
+        }
+        */
+    }
+
+    private Flux<String> internalProxy(String userId, String recordId, JsonNode jsonMessages) throws HttpException{
         if(jsonMessages.isArray()){
             List<MessageOPENAI> messagesOpenai = jsonUtil.getObjectMapper().convertValue(jsonMessages, new TypeReference<>() {});
             List<MessageXDUCHAT> messagesXduchat = this.convertMessage(messagesOpenai);
@@ -95,7 +137,7 @@ public class ProxyServiceImpl implements ProxyService {
                                 MessageOPENAI responseMessage = new MessageOPENAI(proxyConfig.getParameterRoleAssistant(), jsonString);
                                 messagesOpenai.add(responseMessage);
                                 String jsonGeneralRecords = jsonUtil.toJson(messagesOpenai);
-                                GeneralRecord generalRecord = new GeneralRecord(userId, new Date(System.currentTimeMillis()), jsonGeneralRecords);
+                                GeneralRecord generalRecord = new GeneralRecord(userId, recordId, new Date(System.currentTimeMillis()), jsonGeneralRecords);
                                 // 持久化
                                 generalRecordService.save(generalRecord);
                                 // 每个字符分割
@@ -114,11 +156,11 @@ public class ProxyServiceImpl implements ProxyService {
                                         String info =
 //                                                proxyConfig.getSSEData() +
                                                 proxyConfig.getConnectStrBas1()
-                                                + proxyConfig.getConnectStrFirst()
-                                                + "\""
-                                                + string
-                                                + "\""
-                                                + proxyConfig.getConnectStrBas2();
+                                                        + proxyConfig.getConnectStrFirst()
+                                                        + "\""
+                                                        + string
+                                                        + "\""
+                                                        + proxyConfig.getConnectStrBas2();
 //                                                    + proxyConfig.getSSENewLineDouble();
 //                                        log.info("index: {} info: {}", index,  info);
                                         return info;
@@ -127,7 +169,7 @@ public class ProxyServiceImpl implements ProxyService {
                                         String info =
 //                                                proxyConfig.getSSEData() +
                                                 proxyConfig.getConnectStrBas1()
-                                                + proxyConfig.getConnectStrLast();
+                                                        + proxyConfig.getConnectStrLast();
 //                                                    + proxyConfig.getSSENewLineDouble();
 //                                        log.info("index: {} info: {}", index,  info);
                                         return info;
@@ -139,11 +181,11 @@ public class ProxyServiceImpl implements ProxyService {
                                         String info =
 //                                                proxyConfig.getSSEData() +
                                                 proxyConfig.getConnectStrBas1()
-                                                + proxyConfig.getConnectStrIndexMid()
-                                                + "\""
-                                                + string
-                                                + "\""
-                                                + proxyConfig.getConnectStrBas2();
+                                                        + proxyConfig.getConnectStrIndexMid()
+                                                        + "\""
+                                                        + string
+                                                        + "\""
+                                                        + proxyConfig.getConnectStrBas2();
 //                                                    + proxyConfig.getSSENewLineDouble();
 //                                        log.info("index: {} info: {}", index,  info);
                                         return info;
@@ -169,7 +211,8 @@ public class ProxyServiceImpl implements ProxyService {
                 .onStatus(HttpStatus::isError, response -> response.bodyToMono(String.class)
                         .flatMap(errorBody -> Mono.error(new HttpException(errorBody))))
                 .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(proxyConfig.getRequestTimeout()));
+                .timeout(Duration.ofSeconds(proxyConfig.getRequestTimeout()),
+                        Mono.just(ExceptionConstant.TimeOut.getMessage_ZH()));
     }
 
     /**

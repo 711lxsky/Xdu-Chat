@@ -50,4 +50,13 @@ public class JsonUtil {
         return this.objectMapper.convertValue(jsonNode, clazz);
     }
 
+    public String parseJsonNodeToString(JsonNode jsonNode) throws HttpException{
+        try {
+            return this.objectMapper.writeValueAsString(jsonNode);
+        }
+        catch (JsonProcessingException e){
+            throw new HttpException(e.getMessage());
+        }
+    }
+
 }

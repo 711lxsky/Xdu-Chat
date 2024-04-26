@@ -27,6 +27,12 @@ public class GeneralRecord implements Serializable {
     private String userId;
 
     /**
+     * 记录id
+     */
+    @TableField(value = "record_id")
+    private String recordId;
+
+    /**
      * 记录保存时间
      */
     @TableField(value = "time")
@@ -49,8 +55,9 @@ public class GeneralRecord implements Serializable {
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 
-    public GeneralRecord(String userId, Date time, String content) {
+    public GeneralRecord(String userId, String recordId, Date time, String content) {
         this.userId = userId;
+        this.recordId = recordId;
         this.time = time;
         this.content = content;
     }

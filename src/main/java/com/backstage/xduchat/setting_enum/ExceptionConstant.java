@@ -16,9 +16,11 @@ public enum ExceptionConstant {
     ParameterError("The parameter is wrong", "参数错误"),
     InternalServerError( "Internal Server Error", "服务器未知错误"),
     DataNull("Some date is null", "存在空数据"),
+    TimeOut("Request time out", "请求超时"),
     EncryptError(". Unable to encrypt", "无法进行加密"),
     DecryptError(". Unable to decrypt", "无法进行解密"),
     UserIdIsNull("The user id is null", "用户ID为空"),
+    RecordIdIsNull("The record id is null", "记录ID为空"),
     MassagesNull("The parameter messages is null", "消息参数为空"),
     ParameterNull("The parameter is null", "参数为空"),
     UserNotFound("Can not find the user information", "无法找到目标用户信息"),
@@ -34,6 +36,6 @@ public enum ExceptionConstant {
     FileDeleteError("There has some error happened during the file delete", "删除文件错误");
 
     private final String Message_EN;
-    private final String MMessage_ZH;
+    private final String Message_ZH;
 
 }
