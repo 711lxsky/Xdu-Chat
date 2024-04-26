@@ -7,13 +7,14 @@
     <resultMap id="BaseResultMap" type="com.backstage.xduchat.domain.entity.GeneralRecord">
             <id property="id" column="id" jdbcType="BIGINT"/>
             <result property="userId" column="user_id" jdbcType="CHAR"/>
+            <result property="recordId" column="record_id" jdbcType="CHAR"/>
             <result property="time" column="time" jdbcType="TIMESTAMP"/>
             <result property="content" column="content" jdbcType="VARCHAR"/>
             <result property="deleted" column="deleted" jdbcType="TINYINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,time,
-        content,deleted
+        id,user_id, record_id,
+        time,content,deleted
     </sql>
 </mapper>

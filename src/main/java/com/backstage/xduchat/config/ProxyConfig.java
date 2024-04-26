@@ -32,9 +32,13 @@ public class ProxyConfig {
 
     private Integer requestTimeout;
 
+    private Long SSESendTime;
+
     private String responseData;
 
     private String responseDataResponse;
+
+    private String repeatRequest;
 
     private String XduchatApiUrlNew;
 

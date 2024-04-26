@@ -18,4 +18,8 @@ public class DataConfig {
 
     private String parameterUserid;
 
+    private String parameterRecordId;
+
+    private String parameterStream;
+
 }

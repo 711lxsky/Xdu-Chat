@@ -3,11 +3,16 @@ package com.backstage.xduchat.config;
 import com.backstage.xduchat.setting_enum.WebSetting;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import javax.annotation.Resource;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @Author: 711lxsky
@@ -19,6 +24,24 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Resource
     private ProxyConfig proxyConfig;
+
+    @Bean
+    public ExecutorService taskExecutor() {
+        return Executors.newCachedThreadPool();
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate(this.clientHttpRequestFactory());
+    }
+
+    private ClientHttpRequestFactory clientHttpRequestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setReadTimeout(proxyConfig.getRequestTimeout() * 1000);
+        factory.setConnectTimeout(proxyConfig.getRequestTimeout() * 1000);
+        return factory;
+    }
+
 
     @Bean
     public WebClient webClient(WebClient.Builder builder){

@@ -7,3 +7,9 @@
 
 #### XDU-CHAT格式：
 ![](readme_pic/xduchat_format.png)
+
+### Todo:
+
+- 数据库心跳检测
+- 防注入
+- docker容器化
