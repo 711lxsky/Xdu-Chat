@@ -1,5 +1,5 @@
 server:
-  port: 8448
+  port: 8080
 
 spring:
   banner:
@@ -7,6 +7,20 @@ spring:
     location: classpath:xdu-chat-banner.txt
 
   datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      minimum-idle: 5
+      maximum-pool-size: 10
+      auto-commit: true
+      pool-name: xdu-chat-pool
+      connection-test-query: select 1
+      connection-init-sql: select 1
+      leak-detection-threshold: 2000
+      catalog: xdu_chat
+      connection-timeout: 30000
+      validation-timeout: 3000
     username: zyy
     password: 711lxsky.
     url: jdbc:mysql://211.159.166.139:3306/xdu_chat?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
@@ -21,7 +35,7 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 knife4j:
-  enable: true
+  enable: false
   openapi:
     title: xdu-chat代理与数据中台
     email: 22009200439@stu.xidian.edu.cn

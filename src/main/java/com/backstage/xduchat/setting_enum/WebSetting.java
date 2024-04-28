@@ -4,7 +4,6 @@ import lombok.Getter;
 
 /**
  * @Author: 711lxsky
- * @Date: 2024-03-16
  */
 public class WebSetting {
 

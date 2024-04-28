@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.backstage.xduchat.mapper.DialoguesMapper">
+
+    <resultMap id="BaseResultMap" type="com.backstage.xduchat.domain.entity.Dialogue">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="userId" column="user_id" jdbcType="CHAR"/>
+            <result property="dialogueId" column="dialogue_id" jdbcType="CHAR"/>
+            <result property="time" column="time" jdbcType="TIMESTAMP"/>
+            <result property="content" column="content" jdbcType="VARCHAR"/>
+            <result property="deleted" column="deleted" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,user_id,dialogue_id,
+        time,content,deleted
+    </sql>
+</mapper>

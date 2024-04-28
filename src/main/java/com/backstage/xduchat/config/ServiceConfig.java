@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * @Author: 711lxsky
- * @Description:
  */
 
 @Getter

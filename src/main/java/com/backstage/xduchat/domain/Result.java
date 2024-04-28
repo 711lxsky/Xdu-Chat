@@ -35,24 +35,12 @@ public class Result<T> {
         return new Result<>(HttpStatus.OK.value(), message,data);
     }
 
-    public static <T> Result<T> success(Integer code, String message){
-        return new Result<>(code,message,null);
-    }
-
-    public static <T> Result<T> success(Integer code,String message,T data){
-        return new Result<>(code,message,data);
-    }
-
     public static <T> Result<T> fail(String message){
         return new Result<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), message, null);
     }
 
     public static <T> Result<T> fail(Integer code,String message){
         return new Result<>(code,message,null);
-    }
-
-    public static <T> Result<T> fail(Integer code,String message,T data){
-        return new Result<>(code,message,data);
     }
 
     public static <T> Result<T> fail(HttpException e){
