@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.backstage.xduchat.RunTimeTest
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 16.39 s -- in com.backstage.xduchat.RunTimeTest
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.695 s -- in com.backstage.xduchat.RunTimeTest

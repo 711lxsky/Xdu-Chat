@@ -37,7 +37,7 @@ public class ProxyConfig {
 
     private String responseDataResponse;
 
-    private String repeatRequest;
+    private Integer repeatRequestResponseStatus;
 
     private String XduchatApiUrlNew;
 

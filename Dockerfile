@@ -13,7 +13,7 @@ ENV MYSQL_USERNAME=zyy \
 ADD target/xdu-chat-0.0.1-SNAPSHOT.jar xdu-chat.jar
 
 # 暴露端口
-EXPOSE 8080
+EXPOSE 8448
 
 # 运行jar文件，并通过环境变量传递数据库配置
 ENTRYPOINT ["java","-jar","/xdu-chat.jar", "--spring.datasource.username=${MYSQL_USERNAME}", "--spring.datasource.password=${MYSQL_PASSWORD}", "--spring.datasource.url=${MYSQL_URL}"]

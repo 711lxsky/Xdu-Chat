@@ -38,19 +38,15 @@ public class DialogueServiceImpl extends ServiceImpl<DialoguesMapper, Dialogue>
         ){
             return Result.fail(ExceptionConstant.ParameterError.getMessage_ZH());
         }
-        LambdaQueryWrapper<Dialogue> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Dialogue::getDialogueId, dialogueDTO.getId())
+        LambdaQueryWrapper<Dialogue> updateWrapper = new LambdaQueryWrapper<>();
+        updateWrapper.eq(Dialogue::getDialogueId, dialogueDTO.getId())
                 .eq(Dialogue::getUserId, dialogueDTO.getUid());
-        Dialogue dialogue = this.baseMapper.selectOne(queryWrapper);
-        if(Objects.nonNull(dialogue)){
-            return Result.fail(ResultCodeAndMessage.InsertFail.getZhDescription() + " , " + ExceptionConstant.DataExist.getMessage_ZH());
-        }
-
         Dialogue newDialogue = this.parseDialogueDTOToDialogue(dialogueDTO);
-        if(this.save(newDialogue)){
+        if(this.saveOrUpdate(newDialogue, updateWrapper)){
             return Result.success(ResultCodeAndMessage.InsertSuccess.getZhDescription());
         }
         return Result.fail(ResultCodeAndMessage.InsertFail.getZhDescription());
+
     }
 
     @Override

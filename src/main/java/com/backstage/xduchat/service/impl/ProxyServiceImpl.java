@@ -16,6 +16,10 @@ import com.backstage.xduchat.setting_enum.ExceptionConstant;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientException;
@@ -112,10 +116,12 @@ public class ProxyServiceImpl implements ProxyService {
             }
             lock.lock();
             if(waiting){
+                // responseEntity返回的status为202
 //                if(needStream){
 //                    return responseSSE(proxyConfig.getRepeatRequest());
 //                }
-                return responseJson(proxyConfig.getRepeatRequest());
+                HttpStatus refreshMark = HttpStatus.valueOf(proxyConfig.getRepeatRequestResponseStatus());
+                return new ResponseEntity<>(refreshMark);
             }
             try {
                 String responseFromXDUCHAT = this.requestForXDUCHAT(userId, recordId, jsonMessages);
@@ -123,7 +129,8 @@ public class ProxyServiceImpl implements ProxyService {
                     String [] responseInfo = this.buildSSEFormatResponse(responseFromXDUCHAT);
                     return this.responseSSEFromXDUCHAT(responseInfo);
                 }
-                return this.responseJson(responseFromXDUCHAT);
+                // 这里返回的非SSE形式的JSON,但是不是自定义的Result
+                return this.normalNotSSEResponse(responseFromXDUCHAT);
             }
             catch (HttpException e){
                 return responseJson(e.getMessage());
@@ -132,6 +139,12 @@ public class ProxyServiceImpl implements ProxyService {
         finally {
             lock.unlock();
         }
+    }
+
+    private String normalNotSSEResponse(String baseInfo){
+        return dataConfig.getNormalNotSSEResponseConnectStr1()
+                + baseInfo
+                + dataConfig.getNormalNotSSEResponseConnectStr2();
     }
 
     private String[] buildSSEFormatResponse(String xduchatResponse){
@@ -168,6 +181,8 @@ public class ProxyServiceImpl implements ProxyService {
                 return xduchatResponse;
             }
             catch (RestClientException e){
+                log.info(e.getCause() + e.getMessage());
+                e.printStackTrace();
                 if(e.getCause() instanceof SocketTimeoutException){
                     throw new HttpException(ExceptionConstant.TimeOut.getMessage_ZH());
                 }

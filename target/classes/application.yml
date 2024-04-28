@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8448
 
 spring:
   banner:
@@ -35,7 +35,7 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 knife4j:
-  enable: false
+  enable: true
   openapi:
     title: xdu-chat代理与数据中台
     email: 22009200439@stu.xidian.edu.cn
