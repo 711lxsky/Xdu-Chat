@@ -56,4 +56,6 @@ public class ProxyConfig {
     private String connectStrBas2 = "},\"logprobs\":null,\"finish_reason\":null}]}";
 
     private String SSEDone = "[DONE]";
+
+    private String XdeResponse;
 }

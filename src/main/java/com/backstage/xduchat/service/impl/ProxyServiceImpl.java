@@ -168,17 +168,23 @@ public class ProxyServiceImpl implements ProxyService {
                 List<String> params = new ArrayList<>();
                 ParametersXDUCHAT parametersXDUCHAT = new ParametersXDUCHAT(messagesXduchat, params);
                 log.info(parametersXDUCHAT.toString());
-                String xduchatResponse = restTemplate.postForObject(proxyConfig.getXduchatApiUrlNew(), parametersXDUCHAT, String.class);
-                MessageOPENAI responseMessage = new MessageOPENAI(proxyConfig.getParameterRoleAssistant(), xduchatResponse);
+                JsonNode xduchatResponse = restTemplate.postForObject(proxyConfig.getXduchatApiUrl(), parametersXDUCHAT, JsonNode.class);
+                log.info("general-response: {}", xduchatResponse);
+                if(Objects.isNull(xduchatResponse)){
+                   throw new HttpException(ExceptionConstant.ResponseNull.getMessage_ZH());
+                }
+                String realResponse = xduchatResponse.get("response").asText();
+                log.info("real-response: {}", realResponse);
+                if(! StringUtils.hasText(realResponse)){
+                    throw new HttpException(ExceptionConstant.ResponseNull.getMessage_ZH());
+                }
+                MessageOPENAI responseMessage = new MessageOPENAI(proxyConfig.getParameterRoleAssistant(), realResponse);
                 messagesOpenai.add(responseMessage);
                 String jsonGeneralRecords = jsonUtil.toJson(messagesOpenai);
                 GeneralRecord generalRecord = new GeneralRecord(userId, recordId, new Date(System.currentTimeMillis()), jsonGeneralRecords);
                 // 持久化
                 generalRecordService.save(generalRecord);
-                if(! StringUtils.hasText(xduchatResponse)){
-                    throw new HttpException(ExceptionConstant.ResponseNull.getMessage_ZH());
-                }
-                return xduchatResponse;
+                return realResponse;
             }
             catch (RestClientException e){
                 log.info(e.getCause() + e.getMessage());
