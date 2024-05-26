@@ -6,6 +6,7 @@ import com.backstage.xduchat.domain.entity.Dialogue;
 import com.backstage.xduchat.domain.vo.DialogueVO;
 import com.backstage.xduchat.mapper.DialoguesMapper;
 import com.backstage.xduchat.service.DialogueService;
+import com.backstage.xduchat.service.DialogueTimeService;
 import com.backstage.xduchat.setting_enum.ExceptionConstant;
 import com.backstage.xduchat.setting_enum.ResultCodeAndMessage;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -14,6 +15,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -27,6 +29,9 @@ import java.util.Objects;
 @Service
 public class DialogueServiceImpl extends ServiceImpl<DialoguesMapper, Dialogue>
     implements DialogueService {
+
+    @Resource
+    private DialogueTimeService dialogueTimeService;
 
     @Override
     public Result<?> addDialogue(DialogueDTO dialogueDTO) {
@@ -73,6 +78,7 @@ public class DialogueServiceImpl extends ServiceImpl<DialoguesMapper, Dialogue>
         deleteWrapper.eq(Dialogue::getDialogueId, dialogueId)
                 .eq(Dialogue::getUserId, uid);
         if(this.baseMapper.delete(deleteWrapper) == 1){
+            dialogueTimeService.deleteOne(uid, dialogueId);
             return Result.success(ResultCodeAndMessage.DeleteSuccess.getZhDescription());
         }
         return Result.fail(ExceptionConstant.DataNotFound.getMessage_ZH());

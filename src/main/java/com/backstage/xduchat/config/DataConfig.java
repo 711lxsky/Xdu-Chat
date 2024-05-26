@@ -21,6 +21,10 @@ public class DataConfig {
 
     private String parameterStream;
 
+    private String divideLineMD;
+
+    private String divideLineHTML;
+
     private String normalNotSSEResponseConnectStr1 = "{\n" +
             "    \"id\": \"1\",\n" +
             "    \"object\": \"2\",\n" +

@@ -58,4 +58,6 @@ public class ProxyConfig {
     private String SSEDone = "[DONE]";
 
     private String XdeResponse;
+
+    private Integer dialogueTimeMax;
 }

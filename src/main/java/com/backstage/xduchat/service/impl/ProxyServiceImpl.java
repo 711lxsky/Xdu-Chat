@@ -9,16 +9,17 @@ import com.backstage.xduchat.domain.Result;
 import com.backstage.xduchat.domain.dto.MessageOPENAI;
 import com.backstage.xduchat.domain.dto.MessageXDUCHAT;
 import com.backstage.xduchat.domain.dto.ParametersXDUCHAT;
+import com.backstage.xduchat.domain.entity.DialogueTime;
 import com.backstage.xduchat.domain.entity.GeneralRecord;
+import com.backstage.xduchat.service.DialogueTimeService;
 import com.backstage.xduchat.service.GeneralRecordService;
 import com.backstage.xduchat.service.ProxyService;
+import com.backstage.xduchat.setting_enum.DialogueTimeConstant;
 import com.backstage.xduchat.setting_enum.ExceptionConstant;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -29,8 +30,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -54,15 +54,49 @@ public class ProxyServiceImpl implements ProxyService {
 
     private final GeneralRecordService generalRecordService;
 
+    private final DialogueTimeService dialogueTimeService;
+
     private final ConcurrentHashMap<String, ReentrantLock> requestLocks = new ConcurrentHashMap<>();
 
-    public ProxyServiceImpl(JsonUtil jsonUtil, DataConfig dataConfig, ProxyConfig proxyConfig, ExecutorService executorService, RestTemplate restTemplate, GeneralRecordService generalRecordService){
+    // 核心线程数等于CPU核心数，以充分利用CPU资源
+    private final int corePoolSize = Runtime.getRuntime().availableProcessors();
+
+    // 最大线程数不超过2倍核心数，以防过多的上下文切换
+    private final int maximumPoolSize = corePoolSize * 2;
+
+    // 空闲线程存活时间，例如60秒
+    private final long keepAliveTime = 60L;
+
+    // 时间单位为秒
+    private final TimeUnit unit = TimeUnit.SECONDS;
+
+    // 使用有界队列，容量为最大线程数的1.5倍，以平衡线程池和队列之间的任务处理
+    private final int queueCapacity = (int) (maximumPoolSize * 1.5);
+
+    // 使用LinkedBlockingQueue，它具有无限容量，但在实践中表现得像一个有界队列，因为它是基于链表实现的，插入操作很快
+    private final BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>(queueCapacity);
+
+    // 使用默认的线程工厂和拒绝策略
+    private final RejectedExecutionHandler handler = new ThreadPoolExecutor.AbortPolicy();
+
+
+    public ProxyServiceImpl(JsonUtil jsonUtil, DataConfig dataConfig, ProxyConfig proxyConfig, RestTemplate restTemplate,
+                            GeneralRecordService generalRecordService, DialogueTimeService dialogueTimeService){
         this.jsonUtil = jsonUtil;
         this.dataConfig = dataConfig;
         this.proxyConfig = proxyConfig;
-        this.executorService = executorService;
+        this.executorService = new ThreadPoolExecutor(
+                corePoolSize,
+                maximumPoolSize,
+                keepAliveTime,
+                unit,
+                workQueue,
+                Executors.defaultThreadFactory(),
+                handler
+        );
         this.restTemplate = restTemplate;
         this.generalRecordService = generalRecordService;
+        this.dialogueTimeService = dialogueTimeService;
     }
 
     public Object proxy(String jsonParam) throws HttpException {
@@ -107,6 +141,14 @@ public class ProxyServiceImpl implements ProxyService {
             return responseJson(ExceptionConstant.RecordIdIsNull.getMessage_ZH());
         }
         String recordId = jsonRecordId.asText();
+        // 这里先根据 userId 和 recordId 去次数表里面做一个查询， 搞一个限制
+        int curDialogueTime = curDialogueTime(userId, recordId);
+        if(curDialogueTime >= proxyConfig.getDialogueTimeMax()){
+            if(needStream) {
+                return responseSSE(ExceptionConstant.DialogueTimeUpToLimit.getMessage_ZH());
+            }
+            return responseJson(ExceptionConstant.DialogueTimeUpToLimit.getMessage_ZH());
+        }
         String identifier = userId + recordId;
         ReentrantLock lock = requestLocks.computeIfAbsent(identifier, key -> new ReentrantLock());
         boolean waiting = false;
@@ -124,7 +166,9 @@ public class ProxyServiceImpl implements ProxyService {
                 return new ResponseEntity<>(refreshMark);
             }
             try {
-                String responseFromXDUCHAT = this.requestForXDUCHAT(userId, recordId, jsonMessages);
+                String responseFromXDUCHAT = this.requestForXDUCHAT(userId, recordId, jsonMessages, curDialogueTime);
+                String dialogueTimeInfo =  dialogueTimeService.getInformationForDialogueTime(curDialogueTime);
+                responseFromXDUCHAT += dialogueTimeInfo;
                 if(needStream){
                     String [] responseInfo = this.buildSSEFormatResponse(responseFromXDUCHAT);
                     return this.responseSSEFromXDUCHAT(responseInfo);
@@ -141,6 +185,23 @@ public class ProxyServiceImpl implements ProxyService {
         }
     }
 
+    private int curDialogueTime(String uid, String dialogueId) {
+            DialogueTime dialogueTime = this.dialogueTimeService.getByUidAndDialogueId(uid, dialogueId);
+            if(Objects.isNull(dialogueTime)){
+                try {
+                    this.dialogueTimeService.insertOne(uid, dialogueId);
+                }
+                catch (Exception e){
+                    return Integer.parseInt(DialogueTimeConstant.TIME_ERROR_FLAG.getFlag());
+                }
+                return Integer.parseInt(DialogueTimeConstant.DEFAULT_TIME.getFlag());
+            }
+            else if (Objects.equals(dialogueTime.getId(), Long.valueOf(DialogueTimeConstant.FLAG_ID_NULL.getFlag()))){
+                return Integer.parseInt(DialogueTimeConstant.TIME_ERROR_FLAG.getFlag());
+            }
+            return dialogueTime.getTime();
+    }
+
     private String normalNotSSEResponse(String baseInfo){
         return dataConfig.getNormalNotSSEResponseConnectStr1()
                 + baseInfo
@@ -151,15 +212,15 @@ public class ProxyServiceImpl implements ProxyService {
         String [] splitRes  = xduchatResponse.split("");
         log.info("strings: {}", Arrays.toString(splitRes));
         int size = splitRes.length;
-        String [] responseInfo = new String [size];
-        for(int i = 0; i < size; i ++){
+        String [] responseInfo = new String [size + 1];
+        for(int i = 0; i <= size; i ++){
             String info = getInfo(splitRes, i, size);
             responseInfo[i] = info;
         }
         return responseInfo;
     }
 
-    private String requestForXDUCHAT(String userId, String recordId, JsonNode jsonMessages) throws HttpException{
+    private String requestForXDUCHAT(String userId, String recordId, JsonNode jsonMessages, int curDialogueTime) throws HttpException{
         if(jsonMessages.isArray()){
             try {
                 List<MessageOPENAI> messagesOpenai = jsonUtil.getObjectMapper().convertValue(jsonMessages, new TypeReference<>() {});
@@ -182,8 +243,15 @@ public class ProxyServiceImpl implements ProxyService {
                 messagesOpenai.add(responseMessage);
                 String jsonGeneralRecords = jsonUtil.toJson(messagesOpenai);
                 GeneralRecord generalRecord = new GeneralRecord(userId, recordId, new Date(System.currentTimeMillis()), jsonGeneralRecords);
-                // 持久化
-                generalRecordService.save(generalRecord);
+                // 持久化， 这里先判断一下数据库是否出现了问题， 没有才做持久化
+                if(curDialogueTime != Integer.parseInt(DialogueTimeConstant.TIME_ERROR_FLAG.getFlag())){
+                    try {
+                        generalRecordService.save(generalRecord);
+                        dialogueTimeService.addTime(userId, recordId, curDialogueTime);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+                }
                 return realResponse;
             }
             catch (RestClientException e){
@@ -199,9 +267,10 @@ public class ProxyServiceImpl implements ProxyService {
     }
 
     private String getInfo(String[] splitRes, int i, int size) {
-        String string = splitRes[i];
+        String string = "";
         String info;
         if(i == 0){
+            string = splitRes[i];
             info =
                     proxyConfig.getConnectStrBas1()
                             + proxyConfig.getConnectStrFirst()
@@ -210,13 +279,14 @@ public class ProxyServiceImpl implements ProxyService {
                             + "\""
                             + proxyConfig.getConnectStrBas2();
         }
-        else if(i == size - 1){
+        else if(i == size){
             info =
                     proxyConfig.getConnectStrBas1()
                             + proxyConfig.getConnectStrLast();
 
         }
         else {
+            string = splitRes[i];
             info =
                     proxyConfig.getConnectStrBas1()
                             + proxyConfig.getConnectStrIndexMid()

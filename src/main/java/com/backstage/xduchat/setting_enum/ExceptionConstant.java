@@ -18,6 +18,7 @@ public enum ExceptionConstant {
     DataNull("Some date is null", "存在空数据"),
     TimeOut("Request time out", "请求超时"),
     ParametersFormatError("The parameters format is wrong", "参数格式错误"),
+    DialogueTimeUpToLimit("The number of dialogues has reached its limit", "对话次数已达上限，请新建会话"),
     DateFormatError("The date format is wrong", "日期格式错误"),
     RequestRepeat("Request repeat", "请求重复"),
     ResponseNull("The response is null", "响应为空"),
