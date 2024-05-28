@@ -1,34 +1,26 @@
 package com.backstage.xduchat.service.impl;
 
-import cn.hutool.core.util.StrUtil;
 import com.backstage.xduchat.Exception.HttpException;
+import com.backstage.xduchat.Utils.BuildResponseJsonObject;
 import com.backstage.xduchat.Utils.JsonUtil;
 import com.backstage.xduchat.config.DataConfig;
 import com.backstage.xduchat.config.ProxyConfig;
 import com.backstage.xduchat.domain.Result;
-import com.backstage.xduchat.domain.dto.MessageOPENAI;
-import com.backstage.xduchat.domain.dto.MessageXDUCHAT;
-import com.backstage.xduchat.domain.dto.ParametersXDUCHAT;
 import com.backstage.xduchat.domain.entity.DialogueTime;
-import com.backstage.xduchat.domain.entity.GeneralRecord;
 import com.backstage.xduchat.service.DialogueTimeService;
-import com.backstage.xduchat.service.GeneralRecordService;
 import com.backstage.xduchat.service.ProxyService;
 import com.backstage.xduchat.setting_enum.DialogueTimeConstant;
 import com.backstage.xduchat.setting_enum.ExceptionConstant;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import javax.annotation.Resource;
 import java.io.IOException;
-import java.net.SocketTimeoutException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
@@ -50,11 +42,9 @@ public class ProxyServiceImpl implements ProxyService {
 
     private final ExecutorService executorService;
 
-    private final RestTemplate restTemplate;
-
-    private final GeneralRecordService generalRecordService;
-
     private final DialogueTimeService dialogueTimeService;
+
+    private final RequestForXDUCHAT requestForXDUCHAT;
 
     private final ConcurrentHashMap<String, ReentrantLock> requestLocks = new ConcurrentHashMap<>();
 
@@ -79,9 +69,8 @@ public class ProxyServiceImpl implements ProxyService {
     // 使用默认的线程工厂和拒绝策略
     private final RejectedExecutionHandler handler = new ThreadPoolExecutor.AbortPolicy();
 
-
-    public ProxyServiceImpl(JsonUtil jsonUtil, DataConfig dataConfig, ProxyConfig proxyConfig, RestTemplate restTemplate,
-                            GeneralRecordService generalRecordService, DialogueTimeService dialogueTimeService){
+    public ProxyServiceImpl(JsonUtil jsonUtil, DataConfig dataConfig, ProxyConfig proxyConfig,
+                            DialogueTimeService dialogueTimeService, RequestForXDUCHAT requestForXDUCHAT){
         this.jsonUtil = jsonUtil;
         this.dataConfig = dataConfig;
         this.proxyConfig = proxyConfig;
@@ -94,9 +83,8 @@ public class ProxyServiceImpl implements ProxyService {
                 Executors.defaultThreadFactory(),
                 handler
         );
-        this.restTemplate = restTemplate;
-        this.generalRecordService = generalRecordService;
         this.dialogueTimeService = dialogueTimeService;
+        this.requestForXDUCHAT = requestForXDUCHAT;
     }
 
     public Object proxy(String jsonParam) throws HttpException {
@@ -104,7 +92,7 @@ public class ProxyServiceImpl implements ProxyService {
         // 最外层参数
         JsonNode jsonParameters = jsonUtil.getJsonNode(jsonParam);
         if(this.judgeJsonDataIsNull(jsonParameters)){
-            return responseJson(ExceptionConstant.DataError.getMessage_ZH());
+            return responseJsonFail(ExceptionConstant.DataError.getMessage_ZH());
         }
         // Stream
         JsonNode jsonStream = jsonParameters.get(dataConfig.getParameterStream());
@@ -121,7 +109,7 @@ public class ProxyServiceImpl implements ProxyService {
             if(needStream){
                 return responseSSE(ExceptionConstant.ParameterError.getMessage_ZH());
             }
-            return responseJson(ExceptionConstant.ParameterError.getMessage_ZH());
+            return responseJsonFail(ExceptionConstant.ParameterError.getMessage_ZH());
         }
         // uid
         JsonNode jsonUserId = jsonParameters.get(dataConfig.getParameterUserid());
@@ -129,7 +117,7 @@ public class ProxyServiceImpl implements ProxyService {
             if(needStream){
                 return responseSSE(ExceptionConstant.UserIdIsNull.getMessage_ZH());
             }
-            return responseJson(ExceptionConstant.UserIdIsNull.getMessage_ZH());
+            return responseJsonFail(ExceptionConstant.UserIdIsNull.getMessage_ZH());
         }
         String userId = jsonUserId.asText();
         // record_id
@@ -138,7 +126,7 @@ public class ProxyServiceImpl implements ProxyService {
             if(needStream){
                 return responseSSE(ExceptionConstant.RecordIdIsNull.getMessage_ZH());
             }
-            return responseJson(ExceptionConstant.RecordIdIsNull.getMessage_ZH());
+            return responseJsonFail(ExceptionConstant.RecordIdIsNull.getMessage_ZH());
         }
         String recordId = jsonRecordId.asText();
         // 这里先根据 userId 和 recordId 去次数表里面做一个查询， 搞一个限制
@@ -147,7 +135,7 @@ public class ProxyServiceImpl implements ProxyService {
             if(needStream) {
                 return responseSSE(ExceptionConstant.DialogueTimeUpToLimit.getMessage_ZH());
             }
-            return responseJson(ExceptionConstant.DialogueTimeUpToLimit.getMessage_ZH());
+            return responseJsonFail(ExceptionConstant.DialogueTimeUpToLimit.getMessage_ZH());
         }
         String identifier = userId + recordId;
         ReentrantLock lock = requestLocks.computeIfAbsent(identifier, key -> new ReentrantLock());
@@ -159,25 +147,23 @@ public class ProxyServiceImpl implements ProxyService {
             lock.lock();
             if(waiting){
                 // responseEntity返回的status为202
-//                if(needStream){
-//                    return responseSSE(proxyConfig.getRepeatRequest());
-//                }
                 HttpStatus refreshMark = HttpStatus.valueOf(proxyConfig.getRepeatRequestResponseStatus());
                 return new ResponseEntity<>(refreshMark);
             }
             try {
-                String responseFromXDUCHAT = this.requestForXDUCHAT(userId, recordId, jsonMessages, curDialogueTime);
+                String responseFromXDUCHAT = this.requestForXDUCHAT.requestForXDUCHAT(userId, recordId, jsonMessages, curDialogueTime);
                 String dialogueTimeInfo =  dialogueTimeService.getInformationForDialogueTime(curDialogueTime);
                 responseFromXDUCHAT += dialogueTimeInfo;
+//                responseFromXDUCHAT = responseFromXDUCHAT.replaceAll("\\n", "\\\\n");
                 if(needStream){
-                    String [] responseInfo = this.buildSSEFormatResponse(responseFromXDUCHAT);
+                    JsonNode [] responseInfo = this.buildSSEFormatResponse(responseFromXDUCHAT);
                     return this.responseSSEFromXDUCHAT(responseInfo);
                 }
                 // 这里返回的非SSE形式的JSON,但是不是自定义的Result
                 return this.normalNotSSEResponse(responseFromXDUCHAT);
             }
             catch (HttpException e){
-                return responseJson(e.getMessage());
+                return responseJsonFail(e.getMessage());
             }
         }
         finally {
@@ -202,127 +188,52 @@ public class ProxyServiceImpl implements ProxyService {
             return dialogueTime.getTime();
     }
 
-    private String normalNotSSEResponse(String baseInfo){
-        return dataConfig.getNormalNotSSEResponseConnectStr1()
-                + baseInfo
-                + dataConfig.getNormalNotSSEResponseConnectStr2();
+    private JsonNode normalNotSSEResponse(String baseInfo){
+        return buildResponseJsonObject.buildResponseForSSE(dataConfig.getResponseJsonFormatFirst(), baseInfo);
+//        baseInfo = baseInfo.replaceAll("\\n", "\\\\n");
+//        return dataConfig.getNormalNotSSEResponseConnectStr1()
+//                + baseInfo
+//                + dataConfig.getNormalNotSSEResponseConnectStr2();
     }
 
-    private String[] buildSSEFormatResponse(String xduchatResponse){
+    private JsonNode[] buildSSEFormatResponse(String xduchatResponse){
         String [] splitRes  = xduchatResponse.split("");
-        log.info("strings: {}", Arrays.toString(splitRes));
+//        log.info("strings: {}", Arrays.toString(splitRes));
         int size = splitRes.length;
-        String [] responseInfo = new String [size + 1];
+        JsonNode [] responseInfo = new JsonNode [size + 1];
         for(int i = 0; i <= size; i ++){
-            String info = getInfo(splitRes, i, size);
+            JsonNode info = buildSSEResponseWithJsonFormat(splitRes, i, size);
             responseInfo[i] = info;
         }
         return responseInfo;
     }
 
-    private String requestForXDUCHAT(String userId, String recordId, JsonNode jsonMessages, int curDialogueTime) throws HttpException{
-        if(jsonMessages.isArray()){
-            try {
-                List<MessageOPENAI> messagesOpenai = jsonUtil.getObjectMapper().convertValue(jsonMessages, new TypeReference<>() {});
-                List<MessageXDUCHAT> messagesXduchat = this.convertMessage(messagesOpenai);
-                // 重新构造参数
-                List<String> params = new ArrayList<>();
-                ParametersXDUCHAT parametersXDUCHAT = new ParametersXDUCHAT(messagesXduchat, params);
-                log.info(parametersXDUCHAT.toString());
-                JsonNode xduchatResponse = restTemplate.postForObject(proxyConfig.getXduchatApiUrl(), parametersXDUCHAT, JsonNode.class);
-                log.info("general-response: {}", xduchatResponse);
-                if(Objects.isNull(xduchatResponse)){
-                   throw new HttpException(ExceptionConstant.ResponseNull.getMessage_ZH());
-                }
-                String realResponse = xduchatResponse.get("response").asText();
-                log.info("real-response: {}", realResponse);
-                if(! StringUtils.hasText(realResponse)){
-                    throw new HttpException(ExceptionConstant.ResponseNull.getMessage_ZH());
-                }
-                MessageOPENAI responseMessage = new MessageOPENAI(proxyConfig.getParameterRoleAssistant(), realResponse);
-                messagesOpenai.add(responseMessage);
-                String jsonGeneralRecords = jsonUtil.toJson(messagesOpenai);
-                GeneralRecord generalRecord = new GeneralRecord(userId, recordId, new Date(System.currentTimeMillis()), jsonGeneralRecords);
-                // 持久化， 这里先判断一下数据库是否出现了问题， 没有才做持久化
-                if(curDialogueTime != Integer.parseInt(DialogueTimeConstant.TIME_ERROR_FLAG.getFlag())){
-                    try {
-                        generalRecordService.save(generalRecord);
-                        dialogueTimeService.addTime(userId, recordId, curDialogueTime);
-                    }catch (Exception e){
-                        e.printStackTrace();
-                    }
-                }
-                return realResponse;
-            }
-            catch (RestClientException e){
-                log.info(e.getCause() + e.getMessage());
-                e.printStackTrace();
-                if(e.getCause() instanceof SocketTimeoutException){
-                    throw new HttpException(ExceptionConstant.TimeOut.getMessage_ZH());
-                }
-                throw new HttpException(ExceptionConstant.InternalServerError.getMessage_ZH());
-            }
-        }
-        throw new HttpException(ExceptionConstant.DataError.getMessage_ZH());
-    }
+    @Resource
+    private BuildResponseJsonObject buildResponseJsonObject;
 
-    private String getInfo(String[] splitRes, int i, int size) {
-        String string = "";
-        String info;
-        if(i == 0){
-            string = splitRes[i];
-            info =
-                    proxyConfig.getConnectStrBas1()
-                            + proxyConfig.getConnectStrFirst()
-                            + "\""
-                            + string
-                            + "\""
-                            + proxyConfig.getConnectStrBas2();
-        }
-        else if(i == size){
-            info =
-                    proxyConfig.getConnectStrBas1()
-                            + proxyConfig.getConnectStrLast();
 
+    private JsonNode buildSSEResponseWithJsonFormat(String[] contents, int index, int size){
+        if(index == 0){
+            return buildResponseJsonObject.buildResponseForSSE(dataConfig.getResponseJsonFormatFirst(), contents[index]);
+        }
+        else if(index == size) {
+            return buildResponseJsonObject.buildResponseForSSE(dataConfig.getResponseJsonFormatCommon(), "");
         }
         else {
-            string = splitRes[i];
-            info =
-                    proxyConfig.getConnectStrBas1()
-                            + proxyConfig.getConnectStrIndexMid()
-                            + "\""
-                            + string
-                            + "\""
-                            + proxyConfig.getConnectStrBas2();
+            return buildResponseJsonObject.buildResponseForSSE(dataConfig.getResponseJsonFormatCommon(), contents[index]);
         }
-        return info;
     }
 
-    private List<MessageXDUCHAT> convertMessage(List<MessageOPENAI> messagesOpenai) {
-        List<MessageXDUCHAT> messagesXDUCHAT = new ArrayList<>();
-        for(MessageOPENAI messageOpenai : messagesOpenai) {
-            if(StrUtil.equals(messageOpenai.getRole(), proxyConfig.getParameterRoleSystem())){
-                continue;
-            }
-            else if(StrUtil.equals(messageOpenai.getRole(), proxyConfig.getParameterRoleUser())){
-                messagesXDUCHAT.add(new MessageXDUCHAT(proxyConfig.getParameterRoleHUMAN(), messageOpenai.getContent()));
-            }
-            else if(StrUtil.equals(messageOpenai.getRole(), proxyConfig.getParameterRoleAssistant())){
-                messagesXDUCHAT.add(new MessageXDUCHAT(proxyConfig.getParameterRoleBOT(), messageOpenai.getContent()));
-            }
-        }
-        return messagesXDUCHAT;
-    }
-
-    private Result<?> responseJson(String responseMessage){
+    private Result<?> responseJsonFail(String responseMessage){
         return Result.fail(responseMessage);
     }
 
-    private SseEmitter responseSSEFromXDUCHAT(String[] infos){
+    private SseEmitter responseSSEFromXDUCHAT(JsonNode[] infos){
         SseEmitter sseEmitter = new SseEmitter(Long.MAX_VALUE);
         executorService.execute(() -> {
             try {
-                for(String info : infos){
+                for(JsonNode info : infos){
+                    log.info("info {}", info);
                     sseEmitter.send(info);
                     Thread.sleep(proxyConfig.getSSESendTime());
                 }
@@ -340,19 +251,9 @@ public class ProxyServiceImpl implements ProxyService {
         SseEmitter sseEmitter = new SseEmitter(Long.MAX_VALUE);
         executorService.execute(() -> {
             try {
-                String fullResponseInfo =
-                        proxyConfig.getConnectStrBas1()
-                                + proxyConfig.getConnectStrFirst()
-                                + "\""
-                                + baseInfo
-                                + "\""
-                                + proxyConfig.getConnectStrBas2();
-                String [] responseInfo = {fullResponseInfo};
-                for(String info : responseInfo){
-                    sseEmitter.send(info);
-                    Thread.sleep(proxyConfig.getSSESendTime());
-                }
-            } catch (IOException | InterruptedException e) {
+                JsonNode info = buildResponseJsonObject.buildResponseForSSE(dataConfig.getResponseJsonFormatFirst(), baseInfo);
+                sseEmitter.send(info);
+            } catch (IOException e) {
                 sseEmitter.completeWithError(e);
             }
             finally {

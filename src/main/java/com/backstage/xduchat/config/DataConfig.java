@@ -25,27 +25,44 @@ public class DataConfig {
 
     private String divideLineHTML;
 
-    private String normalNotSSEResponseConnectStr1 = "{\n" +
-            "    \"id\": \"1\",\n" +
-            "    \"object\": \"2\",\n" +
-            "    \"created\": \"3\",\n" +
-            "    \"model\": \"gpt-3.5-turbo\",\n" +
-            "    \"usage\": {\n" +
-            "        \"prompt_tokens\": 0,\n" +
-            "        \"completion_tokens\": 0,\n" +
-            "        \"total_tokens\": 0\n" +
-            "    },\n" +
-            "    \"choices\": [\n" +
-            "        {\n" +
-            "            \"message\": {\n" +
-            "                \"role\": \"assistant\",\n" +
-            "                \"content\": \"";
+    private String responseJsonFormatFirst = """
+            {
+                "id": "1",
+                "object": "2",
+                "created": "3",
+                "model": "gpt-3.5-turbo",
+                "system_fingerprint": "4",
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {
+                            "role": "assistant",
+                            "content": ""
+                        },
+                        "logprobs": null,
+                        "finish_reason": null
+                    }
+                ]
+            }
+            """;
 
-    private String normalNotSSEResponseConnectStr2 = "\"\n" +
-            "            },\n" +
-            "            \"finish_reason\": \"stop\",\n" +
-            "            \"index\": 0\n" +
-            "        }\n" +
-            "    ]\n" +
-            "}";
+    private String responseJsonFormatCommon = """
+            {
+                "id": "1",
+                "object": "2",
+                "created": "3",
+                "model": "gpt-3.5-turbo",
+                "system_fingerprint": "4",
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {
+                            "content": ""
+                        },
+                        "logprobs": null,
+                        "finish_reason": null
+                    }
+                ]
+            }
+            """;
 }

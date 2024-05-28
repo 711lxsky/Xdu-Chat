@@ -70,8 +70,8 @@ public class DialogueTimeServiceImpl extends ServiceImpl<DialogueTimeMapper, Dia
     public String getInformationForDialogueTime(int curDialogueTime) {
         System.out.println("次数限制 :" + proxyConfig.getDialogueTimeMax());
         int newDialogueTime = curDialogueTime + 1;
-        return "\\n\\n" + dataConfig.getDivideLineMD() +
-                "\\n##### 当前对话次数：" + newDialogueTime + "/" + proxyConfig.getDialogueTimeMax();
+        return "\n\n" + dataConfig.getDivideLineMD() +
+                "\n##### 当前对话次数：" + newDialogueTime + "/" + proxyConfig.getDialogueTimeMax();
     }
 
     @Override
