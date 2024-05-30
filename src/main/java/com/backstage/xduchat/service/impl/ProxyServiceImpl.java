@@ -233,7 +233,7 @@ public class ProxyServiceImpl implements ProxyService {
         executorService.execute(() -> {
             try {
                 for(JsonNode info : infos){
-                    log.info("info {}", info);
+//                    log.info("info {}", info);
                     sseEmitter.send(info);
                     Thread.sleep(proxyConfig.getSSESendTime());
                 }

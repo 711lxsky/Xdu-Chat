@@ -43,7 +43,9 @@ public class ProxyConfig {
 
     private String SSEData = "data: ";
 
-    private String SSENewLineDouble = "\n\n";
+    private String NewLineDouble = "\n\n";
+
+    private String dialogueTimeTip = "\n##### 当前对话次数：";
 
     private String SSEDone = "[DONE]";
 

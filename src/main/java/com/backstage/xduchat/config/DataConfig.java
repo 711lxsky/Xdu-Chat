@@ -25,6 +25,8 @@ public class DataConfig {
 
     private String divideLineHTML;
 
+    private String divideLine = "/";
+
     private String responseJsonFormatFirst = """
             {
                 "id": "1",

@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Log4j2
 @Service
@@ -93,6 +95,7 @@ public class RequestForXDUCHAT {
     }
 
     private List<MessageXDUCHAT> convertMessage(List<MessageOPENAI> messagesOpenai) {
+        log.info("openai: {}",messagesOpenai);
         List<MessageXDUCHAT> messagesXDUCHAT = new ArrayList<>();
         for(MessageOPENAI messageOpenai : messagesOpenai) {
             if(StrUtil.equals(messageOpenai.getRole(), proxyConfig.getParameterRoleSystem())){
@@ -102,10 +105,19 @@ public class RequestForXDUCHAT {
                 messagesXDUCHAT.add(new MessageXDUCHAT(proxyConfig.getParameterRoleHUMAN(), messageOpenai.getContent()));
             }
             else if(StrUtil.equals(messageOpenai.getRole(), proxyConfig.getParameterRoleAssistant())){
-                messagesXDUCHAT.add(new MessageXDUCHAT(proxyConfig.getParameterRoleBOT(), messageOpenai.getContent()));
+                String content = messageOpenai.getContent();
+                String pattern = ".*?(\\n\\n------\\n##### 当前对话次数：\\d+/\\d+)$";
+                Pattern compiled = Pattern.compile(pattern, Pattern.DOTALL);
+                Matcher matcher = compiled.matcher(content);
+                if(matcher.find()){
+                    log.info("find: {}", matcher.group(1));
+                    String replace = matcher.group(1);
+                    content = content.replaceAll(replace, "");
+                }
+                messagesXDUCHAT.add(new MessageXDUCHAT(proxyConfig.getParameterRoleBOT(), content));
             }
         }
+        log.info("xduchat: {}",messagesXDUCHAT);
         return messagesXDUCHAT;
     }
-
 }
