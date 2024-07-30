@@ -18,12 +18,12 @@ spring:
       connection-test-query: select 1
       connection-init-sql: select 1
       leak-detection-threshold: 2000
-      catalog: xdu_chat
+#      catalog: xdu_chat
       connection-timeout: 30000
       validation-timeout: 3000
-    username: zyy
-    password: 711lxsky.
-    url: jdbc:mysql://211.159.166.139:3306/xdu_chat?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: xdechat
+    password: ZgDNPToXvd%YVZ!W
+    url: jdbc:mysql://47.121.118.249:3306/xdechat?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
 
 mybatis-plus:
   global-config:
