@@ -21,9 +21,9 @@ spring:
 #      catalog: xdu_chat
       connection-timeout: 30000
       validation-timeout: 3000
-    username: xdechat
-    password: ZgDNPToXvd%YVZ!W
-    url: jdbc:mysql://47.121.118.249:3306/xdechat?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username:
+    password:
+    url: jdbc:mysql://0.0.0.0:3306/xdechat?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
 
 mybatis-plus:
   global-config:
@@ -38,7 +38,7 @@ knife4j:
   enable: true
   openapi:
     title: xdu-chat代理与数据中台
-    email: 22009200439@stu.xidian.edu.cn
+    email:
     description: 用于对XDU-Chat进行数据转发和漫游的系统
     group:
       dev1:
